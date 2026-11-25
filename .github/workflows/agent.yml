@@ -8,11 +8,11 @@ on:
       - main
   pull_request:
     paths:
-      - 'agent/**'
-      - 'app/Agents/**'
-      - 'app/Http/Controllers/Api/Agent/**'
-      - 'routes/**'
-      - 'database/migrations/**'
+      - 'server/agent/**'
+      - 'server/app/Agents/**'
+      - 'server/app/Http/Controllers/Api/Agent/**'
+      - 'server/routes/**'
+      - 'server/database/migrations/**'
       - '.github/workflows/agent.yml'
 
 permissions:
@@ -21,6 +21,10 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: server
 
 jobs:
   build:
@@ -33,7 +37,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        working-directory: agent
+        working-directory: server/agent
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,8 +72,8 @@ jobs:
         with:
           name: home-helper-agent-${{ runner.os }}
           path: |
-            agent/build/home-helper-agent
-            agent/build/home-helper-agent.exe
+            server/agent/build/home-helper-agent
+            server/agent/build/home-helper-agent.exe
           if-no-files-found: ignore
 
   # Memory errors and undefined behaviour, on the whole test suite
@@ -78,7 +82,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        working-directory: agent
+        working-directory: server/agent
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -152,7 +156,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
 
       - name: Build the agent
-        working-directory: agent
+        working-directory: server/agent
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHHA_BUILD_TESTS=OFF
           cmake --build build --parallel 4

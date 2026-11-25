@@ -1,4 +1,4 @@
-name: tests
+name: server
 
 on:
   push:
@@ -13,6 +13,10 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: server
 
 jobs:
   # The required checks on main (docs/contributing.md): tests, static-analysis, dependency-audit
@@ -73,6 +77,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+          cache-dependency-path: server/package-lock.json
 
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
@@ -191,7 +196,7 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: services/voice
+        working-directory: server/services/voice
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
