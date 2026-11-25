@@ -4968,7 +4968,6 @@
                         "name": "member",
                         "in": "path",
                         "required": true,
-                        "description": "The member ID",
                         "schema": {
                             "type": "integer"
                         }

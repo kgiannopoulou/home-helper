@@ -44,8 +44,9 @@ function fillUri(string $uri, Household $household): string
 {
     return '/'.preg_replace(
         // Routes with constrained parameters (the meal plan's {date}/{meal}) need values that match
-        ['/\{household\}/', '/\{date\}/', '/\{meal\}/', '/\{[^}]+\}/'],
-        [$household->id, '2026-11-16', 'dinner', '01JAAAAAAAAAAAAAAAAAAAAAAA'],
+        // and users and phone sessions have numeric ids
+        ['/\{household\}/', '/\{date\}/', '/\{meal\}/', '/\{(member|session)\}/', '/\{[^}]+\}/'],
+        [$household->id, '2026-11-16', 'dinner', '1', '01JAAAAAAAAAAAAAAAAAAAAAAA'],
         $uri,
     );
 }

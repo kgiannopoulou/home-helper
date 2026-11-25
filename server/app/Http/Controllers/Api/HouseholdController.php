@@ -90,10 +90,10 @@ class HouseholdController extends Controller
      * Remove a member (owners), or leave (anyone, with their own id). The last owner
      * can't go: transfer ownership first. Access ends at once.
      */
-    public function removeMember(Request $request, Household $household, User $member, RemoveMember $remove): Response
+    public function removeMember(Request $request, Household $household, int $member, RemoveMember $remove): Response
     {
         Gate::authorize('view', $household);
-        $remove($household, $request->user(), $member);
+        $remove($household, $request->user(), User::findOrFail($member));
 
         return response()->noContent();
     }

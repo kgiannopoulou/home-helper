@@ -94,7 +94,7 @@ Route::name('api.')->group(function () {
         Route::patch('households/{household}', [HouseholdController::class, 'update'])->name('households.update');
         Route::get('households/{household}/members', [HouseholdController::class, 'members'])->name('households.members');
         // Remove a member or leave; hand over ownership (docs/security.md#households)
-        Route::delete('households/{household}/members/{member}', [HouseholdController::class, 'removeMember'])->name('households.members.destroy');
+        Route::delete('households/{household}/members/{member}', [HouseholdController::class, 'removeMember'])->whereNumber('member')->name('households.members.destroy');
         Route::post('households/{household}/owner', [HouseholdController::class, 'transferOwnership'])->name('households.owner');
         // Phones signed in to this account; sign one or all the others out
         Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
