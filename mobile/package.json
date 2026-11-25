@@ -45,7 +45,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "build:pwa": "expo export -p web && node scripts/pwa.mjs",
-    "build:apk": "eas build -p android --profile preview"
+    "build:apk": "npx eas-cli@latest build -p android --profile preview"
   },
   "private": true,
   "jest": {

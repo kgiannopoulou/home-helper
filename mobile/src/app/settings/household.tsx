@@ -1,13 +1,40 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import type { HouseholdInfo, MemberInfo } from '../../shared/sync/api';
 import { useSync } from '../../shared/sync/SyncProvider';
 import { Button, Card, colors, Field, Muted, styles, Title } from '../../shared/ui';
 
-const message = (e: unknown) => (e as { errors?: Record<string, string[]>; message?: string }).errors?.email?.[0] ?? (e as Error).message;
+const message = (e: unknown) => {
+  const errors = (e as { errors?: Record<string, string[]> }).errors;
+  return errors?.email?.[0] ?? errors?.member?.[0] ?? (e as Error).message;
+};
+
+/** Alert.alert has no buttons on web, so the PWA asks with the browser's confirm */
+function confirmThen(title: string, text: string, ok: string, go: () => void) {
+  if (Platform.OS === 'web') {
+    if (window.confirm(`${title}
+
+${text}`)) go();
+    return;
+  }
+  Alert.alert(title, text, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: ok, style: 'destructive', onPress: go },
+  ]);
+}
 
 function Members() {
-  const { account, members } = useSync();
+  const { account, members, removeMember } = useSync();
+  const isOwner = account?.household?.role === 'owner';
+  const remove = (m: MemberInfo) => {
+    const me = m.id === account?.user.id;
+    confirmThen(
+      me ? 'Leave this household?' : `Remove ${m.name}?`,
+      me ? 'This phone keeps its data but stops sharing it.' : 'Their phones stop syncing with this household straight away.',
+      me ? 'Leave' : 'Remove',
+      () => removeMember(m.id).then(() => setList((l) => l?.filter((x) => x.id !== m.id) ?? null), (e) => setError(message(e))),
+    );
+  };
   const [list, setList] = useState<MemberInfo[] | null>(null);
   const [error, setError] = useState('');
 
@@ -26,7 +53,14 @@ function Members() {
             {m.name}
             {m.id === account?.user.id ? ' (you)' : ''}
           </Text>
-          <Muted>{m.role === 'owner' ? 'owner' : 'member'}</Muted>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Muted>{m.role === 'owner' ? 'owner' : 'member'}</Muted>
+            {(m.id === account?.user.id || isOwner) && (
+              <Pressable accessibilityRole="button" onPress={() => remove(m)} hitSlop={8}>
+                <Text style={{ color: colors.danger }}>{m.id === account?.user.id ? 'Leave' : 'Remove'}</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
       ))}
     </Card>

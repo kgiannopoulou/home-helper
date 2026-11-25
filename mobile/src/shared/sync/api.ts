@@ -62,12 +62,18 @@ export function normalizeServerUrl(url: string): string {
 export function api(serverUrl: string, token: string | null) {
   const u = (path: string) => `${serverUrl}/api${path}`;
   return {
-    login: (email: string, password: string, deviceName: string) =>
-      call<{ token: string; user: { id: number; name: string; email: string } }>(u('/login'), { method: 'POST', body: { email, password, device_name: deviceName } }),
+    /** code: the authenticator (or recovery) code, when the account has two-factor on */
+    login: (email: string, password: string, deviceName: string, code?: string) =>
+      call<{ token: string; user: { id: number; name: string; email: string } }>(u('/login'), {
+        method: 'POST',
+        body: { email, password, device_name: deviceName, ...(code ? (/^\d{6}$/.test(code) ? { code } : { recovery_code: code }) : {}) },
+      }),
     logout: () => call<void>(u('/logout'), { method: 'POST', token }),
     households: async () => (await call<{ data: HouseholdInfo[] }>(u('/households'), { token })).data,
     createHousehold: async (name: string) => (await call<{ data: HouseholdInfo }>(u('/households'), { method: 'POST', token, body: { name } })).data,
     members: async (householdId: string) => (await call<{ data: MemberInfo[] }>(u(`/households/${householdId}/members`), { token })).data,
+    /** An owner removes someone, or you leave (your own id) */
+    removeMember: (householdId: string, userId: number) => call<void>(u(`/households/${householdId}/members/${userId}`), { method: 'DELETE', token }),
     invite: (householdId: string, email: string) => call<unknown>(u(`/households/${householdId}/invites`), { method: 'POST', token, body: { email } }),
     /**
      * The link from the invite email; the signature in it is checked by the server. Only a link to

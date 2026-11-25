@@ -11,6 +11,9 @@ function SignIn() {
   const [server, setServer] = useState(process.env.EXPO_PUBLIC_API_URL ?? '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Asked for only when the server says the account has two-factor on
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,10 +21,12 @@ function SignIn() {
     setBusy(true);
     setError('');
     try {
-      await signIn(server, email, password);
+      await signIn(server, email, password, needsCode ? code : undefined);
     } catch (e) {
       const err = e as ApiError;
-      setError(err.errors?.email?.[0] ?? err.message);
+      const codeError = err.errors?.code?.[0] ?? err.errors?.recovery_code?.[0];
+      if (codeError) setNeedsCode(true);
+      setError(err.errors?.email?.[0] ?? codeError ?? err.message);
     } finally {
       setBusy(false);
     }
@@ -38,6 +43,9 @@ function SignIn() {
       <Field label="Server" value={server} onChangeText={setServer} placeholder="home.example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" />
       <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress" />
       <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" />
+      {needsCode && (
+        <Field label="Code from your authenticator app (or a recovery code)" value={code} onChangeText={setCode} autoCapitalize="none" autoCorrect={false} textContentType="oneTimeCode" />
+      )}
       {!!error && <Text style={[styles.text, { color: colors.danger, marginBottom: 8 }]}>{error}</Text>}
       {busy ? <ActivityIndicator color={colors.primary} /> : <Button label="Sign in" onPress={submit} disabled={!server.trim() || !email.trim() || !password} />}
     </Card>

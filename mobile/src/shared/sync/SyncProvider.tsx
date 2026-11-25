@@ -42,13 +42,15 @@ interface SyncValue {
   status: SyncStatus;
   /** Whether the server's jobs can reach this phone; null until checked */
   push: PushState | null;
-  signIn: (serverUrl: string, email: string, password: string) => Promise<void>;
+  signIn: (serverUrl: string, email: string, password: string, code?: string) => Promise<void>;
   signOut: () => Promise<void>;
   households: () => Promise<HouseholdInfo[]>;
   chooseHousehold: (h: HouseholdInfo) => Promise<void>;
   createHousehold: (name: string) => Promise<void>;
   members: () => Promise<MemberInfo[]>;
   invite: (email: string) => Promise<void>;
+  /** Remove someone (owners only), or leave when it's your own id: then this phone stops sharing */
+  removeMember: (userId: number) => Promise<void>;
   join: (link: string) => Promise<void>;
   syncNow: () => void;
 }
@@ -232,9 +234,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       loaded,
       status,
       push,
-      signIn: async (serverUrl, email, password) => {
+      signIn: async (serverUrl, email, password, code) => {
         const url = normalizeServerUrl(serverUrl);
-        const { token: t, user } = await api(url, null).login(email.trim(), password, `${Platform.OS} phone`);
+        const { token: t, user } = await api(url, null).login(email.trim(), password, `${Platform.OS} phone`, code?.replace(/\s+/g, '') || undefined);
         await setToken(t);
         token.current = t;
         const households = await api(url, t).households();
@@ -264,6 +266,21 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       members: loadMembers,
       invite: async (email) => {
         await client().invite(accountRef.current!.household!.id, email.trim());
+      },
+      removeMember: async (userId) => {
+        const a = accountRef.current!;
+        await client().removeMember(a.household!.id, userId);
+        if (userId === a.user.id) {
+          // Left: keep the data on this phone, but stop syncing it with that household
+          ledger.current = {};
+          since.current = null;
+          await clearSyncState();
+          const next = { ...a, household: null };
+          await saveAccount(next);
+          setAccount(next);
+        } else {
+          await loadMembers();
+        }
       },
       join: async (link) => switchHousehold(await client().acceptInvite(link)),
       syncNow: () => schedule(0),
