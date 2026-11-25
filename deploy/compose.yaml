@@ -1,0 +1,105 @@
+# The household server on one small VM (Oracle Cloud Always Free, Ampere A1, Ubuntu).
+#
+#   cp deploy/.env.example deploy/.env      # fill it in (deploy/README.md)
+#   docker compose -f deploy/compose.yaml --env-file deploy/.env up -d --build
+#
+# Only ports 80/443 are published. MySQL and Redis are reachable from these containers only.
+name: home-helper
+
+x-app: &app
+  image: home-helper:latest
+  pull_policy: never
+  restart: unless-stopped
+  env_file: ${ENV_FILE:-.env}
+  environment:
+    DB_HOST: mysql
+    REDIS_HOST: redis
+    APP_URL: https://${API_DOMAIN}
+    CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN},https://${API_DOMAIN}
+  volumes:
+    - storage:/app/storage
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_started
+
+services:
+  web:
+    <<: *app
+    # Built once; queue and scheduler run the same image
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        API_URL: https://${API_DOMAIN}
+    environment:
+      ROLE: web
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      APP_URL: https://${API_DOMAIN}
+      CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN},https://${API_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+      APP_DOMAIN: ${APP_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - storage:/app/storage
+      - caddy-data:/data
+      - caddy-config:/config
+
+  queue:
+    <<: *app
+    environment:
+      ROLE: queue
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      APP_URL: https://${API_DOMAIN}
+    # Same as ops/deploy/home-helper-worker.conf: both queues, restarted hourly to free memory
+    command: ["php", "artisan", "queue:work", "--queue=default,households", "--sleep=3", "--tries=3", "--max-time=3600"]
+    stop_grace_period: 200s
+
+  scheduler:
+    <<: *app
+    environment:
+      ROLE: scheduler
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      APP_URL: https://${API_DOMAIN}
+    # Runs routes/console.php every minute: household jobs, nightly db:backup, pruning
+    command: ["php", "artisan", "schedule:work"]
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-home_helper}
+      MYSQL_USER: ${DB_USERNAME:-home_helper}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in deploy/.env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in deploy/.env}
+    # Small-server settings: the whole stack fits comfortably in 6 GB
+    command: ["--innodb-buffer-pool-size=512M", "--max-connections=60", "--skip-name-resolve"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in deploy/.env}"]
+    volumes:
+      - redis-data:/data
+
+volumes:
+  storage:
+  mysql-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

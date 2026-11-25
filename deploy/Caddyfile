@@ -1,0 +1,35 @@
+# Two free DuckDNS names point at the same server:
+#   API_DOMAIN  the Laravel API (phones sync here) and the web dashboard
+#   APP_DOMAIN  the installable PWA (iPhone: Safari → Share → Add to Home Screen)
+# Caddy gets and renews the HTTPS certificates by itself (ports 80 and 443 must be open).
+{
+	frankenphp
+}
+
+{$API_DOMAIN} {
+	root * /app/public
+	encode zstd gzip
+	php_server
+}
+
+{$APP_DOMAIN} {
+	root * /srv/pwa
+	encode zstd gzip
+
+	# The service worker and the page itself must never be cached by the browser,
+	# so a new release reaches every phone on the next open.
+	@nocache path /sw.js /index.html /
+	header @nocache Cache-Control "no-cache"
+	@hashed path /_expo/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000"
+	}
+
+	# Expo Router is a single-page app: unknown paths open index.html
+	try_files {path} /index.html
+	file_server
+}
