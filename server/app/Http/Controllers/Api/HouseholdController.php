@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Households\RemoveMember;
+use App\Actions\Households\TransferOwnership;
 use App\Enums\HouseholdRole;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\HouseholdResource;
 use App\Http\Resources\MemberResource;
 use App\Models\Household;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -78,6 +82,30 @@ class HouseholdController extends Controller
     public function members(Household $household): AnonymousResourceCollection
     {
         Gate::authorize('view', $household);
+
+        return MemberResource::collection($household->users()->orderBy('name')->get());
+    }
+
+    /**
+     * Remove a member (owners), or leave (anyone, with their own id). The last owner
+     * can't go: transfer ownership first. Access ends at once.
+     */
+    public function removeMember(Request $request, Household $household, User $member, RemoveMember $remove): Response
+    {
+        Gate::authorize('view', $household);
+        $remove($household, $request->user(), $member);
+
+        return response()->noContent();
+    }
+
+    /**
+     * Hand the household to another member; the caller becomes a member. Owner only.
+     */
+    public function transferOwnership(Request $request, Household $household, TransferOwnership $transfer): AnonymousResourceCollection
+    {
+        Gate::authorize('update', $household);
+        $data = $request->validate(['user_id' => ['required', 'integer']]);
+        $transfer($household, $request->user(), User::findOrFail($data['user_id']));
 
         return MemberResource::collection($household->users()->orderBy('name')->get());
     }

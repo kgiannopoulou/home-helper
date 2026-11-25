@@ -33,6 +33,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('household', [HouseholdController::class, 'store'])->name('household.store');
     Route::post('household/invites', [HouseholdController::class, 'invite'])->middleware('throttle:10,1')->name('household.invite');
     Route::post('household/switch/{household}', [HouseholdController::class, 'switch'])->name('household.switch');
+    // Remove someone (owners) or leave; hand over ownership (docs/security.md#households)
+    Route::delete('household/members/{member}', [HouseholdController::class, 'removeMember'])->name('household.members.destroy');
+    Route::post('household/owner/{member}', [HouseholdController::class, 'transferOwnership'])->name('household.owner');
 
     Route::middleware(EnsureHousehold::class)->group(function () {
         Route::get('dashboard', DashboardController::class)->name('dashboard');

@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\ReceiptController;
 use App\Http\Controllers\Api\RecipeController;
 use App\Http\Controllers\Api\RecurringBillController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\ShoppingItemController;
 use App\Http\Controllers\Api\ShoppingTripController;
 use App\Http\Controllers\Api\SleepEntryController;
@@ -92,6 +93,13 @@ Route::name('api.')->group(function () {
         Route::get('households/{household}', [HouseholdController::class, 'show'])->name('households.show');
         Route::patch('households/{household}', [HouseholdController::class, 'update'])->name('households.update');
         Route::get('households/{household}/members', [HouseholdController::class, 'members'])->name('households.members');
+        // Remove a member or leave; hand over ownership (docs/security.md#households)
+        Route::delete('households/{household}/members/{member}', [HouseholdController::class, 'removeMember'])->name('households.members.destroy');
+        Route::post('households/{household}/owner', [HouseholdController::class, 'transferOwnership'])->name('households.owner');
+        // Phones signed in to this account; sign one or all the others out
+        Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
+        Route::delete('sessions/others', [SessionController::class, 'destroyOthers'])->name('sessions.others');
+        Route::delete('sessions/{session}', [SessionController::class, 'destroy'])->whereNumber('session')->name('sessions.destroy');
         Route::post('households/{household}/invites', [InviteController::class, 'store'])->middleware('throttle:invites')->name('invites.store');
         Route::post('invites/{invite}/accept', [InviteController::class, 'accept'])->middleware('signed')->name('invites.accept');
 

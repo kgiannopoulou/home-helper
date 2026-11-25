@@ -8,8 +8,8 @@ Days 4 and 11 of [Phase 1](phase-1.md): authentication, authorization, Sanctum, 
 |---|---|---|
 | How | Session cookie (Fortify) | Sanctum bearer token (`POST /api/login`) |
 | Password rules | 12+ characters, mixed case, numbers, symbols and not in a known breach, in production (`AppServiceProvider::configureDefaults`) | Same accounts |
-| Second factor | TOTP two-factor and passkeys | Not on the token login yet (see gaps) |
-| Email verification | Required for every page (`verified`) | Not required for the token login (see gaps) |
+| Second factor | TOTP two-factor and passkeys | TOTP code (or a recovery code) on `POST /api/login` when 2FA is on |
+| Email verification | Required for every page (`verified`) | Required: an unconfirmed email gets no token |
 | Brute force | 5 / min per email + IP | 6 / min per email + IP, and 30 / min per IP |
 | Expiry | `SESSION_LIFETIME` (120 min) | **90 days** (`SANCTUM_TOKEN_EXPIRATION`), then the phone asks to log in again. Expired rows are pruned daily |
 | Logout | Ends the session | Deletes that token, and its push device (cascade) |
@@ -71,8 +71,20 @@ Every limiter and its key is in [api.md](api.md#rate-limits). Reviewed in Phase 
 
 Known and not fixed in Phase 1, roughly in order of importance:
 
-1. **Token login skips two-factor and email verification.** A password alone gets a 90-day token. Fix: require the TOTP code on `POST /api/login` when 2FA is on, and refuse unverified emails.
-2. **No way to remove a member, leave a household or transfer ownership.** A member who moves out keeps access until the database is edited.
-3. **No "log out other devices".** Tokens can't be listed or revoked from the dashboard.
+1. ~~Token login skips two-factor and email verification.~~ **Fixed:** `POST /api/login` refuses unconfirmed emails and asks for `code` (or `recovery_code`, used once) when 2FA is on (`AuthController::checkSecondFactor`).
+2. ~~No way to remove a member, leave a household or transfer ownership.~~ **Fixed:** see [Households](#households) below.
+3. ~~No "log out other devices".~~ **Fixed:** *Settings → Security → Signed-in phones*, and `GET /api/sessions`, `DELETE /api/sessions/others`, `DELETE /api/sessions/{id}`.
 4. **No CSP on the web pages.** Needs Vite's nonce support.
 5. **Single owner.** If the owner's account is deleted, nobody can invite.
+
+## Households
+
+`App\Actions\Households\RemoveMember` and `TransferOwnership`, shared by the API and the dashboard:
+
+| Who | Can |
+|---|---|
+| Owner | Remove any member; make another member owner (then becomes a member) |
+| Member | Leave (remove themself) |
+| Last owner | Can't leave or be removed until someone else is owner |
+
+Removal takes effect on the next request: every route, sync and push checks membership, so the removed person's phones get 403 and stop receiving the household's pushes. Their unaccepted invites to the household are deleted, so an old link can't let them back in. Rows they created stay with the household. Tests: `tests/Feature/Api/HouseholdMembersTest.php`, `tests/Feature/Web/HouseholdMembersTest.php`, `tests/Feature/Api/SessionsTest.php`.

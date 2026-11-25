@@ -25,9 +25,15 @@ type Props = {
     members: Member[];
     invites: PendingInvite[];
     canInvite: boolean;
+    me: number;
 };
 
-export default function Household({ members, invites, canInvite }: Props) {
+export default function Household({
+    members,
+    invites,
+    canInvite,
+    me,
+}: Props) {
     const { household, households } = usePage<{
         household: CurrentHousehold | null;
         households: HouseholdOption[];
@@ -81,6 +87,11 @@ export default function Household({ members, invites, canInvite }: Props) {
                                             >
                                                 {m.role}
                                             </Badge>
+                                            <MemberActions
+                                                member={m}
+                                                isMe={m.id === me}
+                                                isOwner={canInvite}
+                                            />
                                         </div>
                                     </li>
                                 ))}
@@ -129,6 +140,91 @@ export default function Household({ members, invites, canInvite }: Props) {
 
                 <NewHousehold first={!household} />
             </div>
+        </>
+    );
+}
+
+/**
+ * Owners can hand over the household or remove someone; anyone can leave.
+ * The last owner can't leave until someone else is owner (the server says so).
+ */
+function MemberActions({
+    member,
+    isMe,
+    isOwner,
+}: {
+    member: Member;
+    isMe: boolean;
+    isOwner: boolean;
+}) {
+    const ask = (question: string, go: () => void) => {
+        if (window.confirm(question)) {
+            go();
+        }
+    };
+    const remove = () =>
+        router.delete(`/household/members/${member.id}`, {
+            preserveScroll: true,
+            onError: (errors) => {
+                if (errors.member) {
+                    window.alert(errors.member);
+                }
+            },
+        });
+
+    if (isMe) {
+        return (
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                    ask(
+                        'Leave this household? You lose access to its shopping list, kitchen, money, chores and planner.',
+                        remove,
+                    )
+                }
+            >
+                Leave
+            </Button>
+        );
+    }
+    if (!isOwner) {
+        return null;
+    }
+
+    return (
+        <>
+            {member.role !== 'owner' && (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                        ask(
+                            `Make ${member.name} the owner? You become a member and can no longer invite or remove people.`,
+                            () =>
+                                router.post(
+                                    `/household/owner/${member.id}`,
+                                    {},
+                                    { preserveScroll: true },
+                                ),
+                        )
+                    }
+                >
+                    Make owner
+                </Button>
+            )}
+            <Button
+                variant="destructive"
+                size="sm"
+                onClick={() =>
+                    ask(
+                        `Remove ${member.name}? Their phones stop syncing with this household straight away.`,
+                        remove,
+                    )
+                }
+            >
+                Remove
+            </Button>
         </>
     );
 }

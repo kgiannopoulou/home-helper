@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
+use App\Support\SignedInDevices;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,6 +40,7 @@ class SecurityController extends Controller
                     ->all()
                 : [],
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'phones' => SignedInDevices::list($request->user()),
         ];
 
         if (Features::canManageTwoFactorAuthentication()) {
@@ -60,6 +63,25 @@ class SecurityController extends Controller
         ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
+
+        return back();
+    }
+
+    /**
+     * Sign out every phone (e.g. after losing one). Their push notifications stop too.
+     */
+    public function signOutPhones(Request $request): RedirectResponse
+    {
+        $count = SignedInDevices::revokeOthers($request->user());
+        Inertia::flash('toast', ['type' => 'success', 'message' => $count === 1 ? '1 phone signed out.' : "{$count} phones signed out."]);
+
+        return back();
+    }
+
+    public function signOutPhone(Request $request, int $token): RedirectResponse
+    {
+        $request->user()->tokens()->whereKey($token)->delete();
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Phone signed out.']);
 
         return back();
     }

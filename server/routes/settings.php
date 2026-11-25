@@ -24,6 +24,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:6,1')
         ->name('user-password.update');
 
+    // Phones signed in with the app (Sanctum tokens): sign one or all of them out
+    Route::delete('settings/phones', [SecurityController::class, 'signOutPhones'])->name('phones.destroy');
+    Route::delete('settings/phones/{token}', [SecurityController::class, 'signOutPhone'])->whereNumber('token')->name('phones.destroy-one');
+
     Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
 
     // Voice: voice, style, wake word and privacy (docs/voice.md#settings)

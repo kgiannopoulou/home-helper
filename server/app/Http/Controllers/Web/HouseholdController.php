@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Actions\Households\InviteMember;
+use App\Actions\Households\RemoveMember;
+use App\Actions\Households\TransferOwnership;
 use App\Enums\HouseholdRole;
 use App\Models\Household;
 use App\Models\Invite;
@@ -35,6 +37,7 @@ class HouseholdController extends WebController
             'invites' => $household ? $household->invites()->whereNull('accepted_at')->where('expires_at', '>', now())->latest()->get()
                 ->map(fn (Invite $i) => ['id' => $i->id, 'email' => $i->email, 'role' => $i->role, 'expires_at' => $i->expires_at->toDateString()])->all() : [],
             'canInvite' => $household && $request->user()->can('invite', $household),
+            'me' => $request->user()->id,
         ]);
     }
 
@@ -45,6 +48,32 @@ class HouseholdController extends WebController
 
         $sent = $invite($household, $request->user(), $request->only('email', 'role'));
         Inertia::flash('toast', ['type' => 'success', 'message' => "Invite sent to {$sent->email}."]);
+
+        return back();
+    }
+
+    /** An owner removes someone, or you leave (your own id). */
+    public function removeMember(Request $request, User $member, RemoveMember $remove): RedirectResponse
+    {
+        $household = CurrentHousehold::get($request) ?? abort(404);
+        $remove($household, $request->user(), $member);
+
+        if ($request->user()->is($member)) {
+            Inertia::flash('toast', ['type' => 'success', 'message' => "You left {$household->name}."]);
+
+            return redirect()->route('household.show');
+        }
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$member->name} no longer has access to {$household->name}."]);
+
+        return back();
+    }
+
+    /** Make another member the owner; you become a member. */
+    public function transferOwnership(Request $request, User $member, TransferOwnership $transfer): RedirectResponse
+    {
+        $household = CurrentHousehold::get($request) ?? abort(404);
+        $transfer($household, $request->user(), $member);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$member->name} is now the owner of {$household->name}."]);
 
         return back();
     }

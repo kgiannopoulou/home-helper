@@ -11,10 +11,13 @@ import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys'
 import ManagePasskeys from '@/components/manage-passkeys';
 import type { Props as ManageTwoFactorProps } from '@/components/manage-two-factor';
 import ManageTwoFactor from '@/components/manage-two-factor';
+import type { Phone } from '@/components/signed-in-phones';
+import SignedInPhones from '@/components/signed-in-phones';
 
 // oxfmt-ignore
 type Props = {
     passwordRules: string;
+    phones: Phone[];
 } & ManagePasskeysProps &
     ManageTwoFactorProps;
 
@@ -134,6 +137,8 @@ export default function Security(props: Props) {
                 canManagePasskeys={props.canManagePasskeys}
                 passkeys={props.passkeys}
             />
+
+            <SignedInPhones phones={props.phones} />
         </>
     );
 }
