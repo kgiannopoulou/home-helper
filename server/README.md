@@ -1,0 +1,133 @@
+# 🏠 Home Helper API
+
+[![tests](https://github.com/kgiannopoulou/home-helper-api/actions/workflows/tests.yml/badge.svg)](https://github.com/kgiannopoulou/home-helper-api/actions/workflows/tests.yml)
+[![agent](https://github.com/kgiannopoulou/home-helper-api/actions/workflows/agent.yml/badge.svg)](https://github.com/kgiannopoulou/home-helper-api/actions/workflows/agent.yml)
+
+**The shared household server for [Personal Home Helper](https://github.com/kgiannopoulou/personal-home-helper)**, an offline-first Expo app for money, kitchen, shopping, chores, plants, health and planning. This Laravel app gives a household one shared copy of its data: a REST + sync API for the phones, scheduled jobs that push to them, and a React dashboard, all on MySQL. An Oracle lab runs the same data through partitioning, backup and recovery.
+
+![Adding yoghurt on the phone and seeing it on the web dashboard](docs/demo/phone-to-web.gif)
+
+*Yoghurt is added on the phone (left) and appears on the web dashboard (right) 16 seconds later.*
+
+## In 30 seconds
+
+| | |
+|---|---|
+| **PHP, Laravel 13** | REST + sync API with Sanctum, policies and Form Requests. [OpenAPI document](docs/openapi.json) generated from the code. Queued jobs on Redis, the scheduler and Expo push. **757 Pest tests on real MySQL**, including a sweep that proves every route needs a token and refuses non-members |
+| **AI assistant** | Ask "What should I do today?" or "How much did I spend this month?" and Claude answers from the household's data through 28 tools behind one permission gate. Anything it wants to change waits for you to press Confirm. Official Anthropic PHP SDK, prompt caching, conversation history, an offline mode without a key ([assistant](docs/assistant.md)) |
+| **Memory** | Home Helper remembers preferences and routines ("Alex doesn't eat meat"), keeps notes and uploaded documents, and answers from history: "when did we last descale the kettle?", "what did we decide about the holiday?". Hybrid search (embeddings + MySQL FULLTEXT, reciprocal rank fusion), long conversations summarised, an activity timeline in one `UNION ALL`, weekly and monthly summaries ([memory](docs/memory.md)) |
+| **Voice** | Say "Hey Jarvis", ask, hear the answer, keep talking, interrupt it. A separate Python service runs Whisper (speech to text), Piper (five voices) and openWakeWord **on your own machine**: recordings are never stored. Response styles from brief to butler, privacy controls ([voice](docs/voice.md)) |
+| **C++ local agent** | A C++20 service on the household's computers (Windows and Linux, the Raspberry Pi too) reports CPU, memory, disks, temperature, microphones and speakers, sends events, and runs **only the commands its own config allows**: no shell, sensitive ones confirmed by the owner, the assistant can only propose. HMAC-signed requests *and* responses, DPAPI-protected credentials, Ed25519-signed updates, an offline outbox, a Windows service and a hardened systemd unit. 105 Catch2 tests under ASan/UBSan, and an end-to-end test of the real agent against this app in CI ([agent](agent/README.md), [Phase 5](docs/phase-5.md)) |
+| **Smart home** | Lights, plugs, locks and sensors through the household's **Home Assistant**: discovery with rooms from its areas, controls from the dashboard and the phone, temperature and humidity charts, door and window events, pushes, an automation engine with six ready-made workflows, and **owner approval** before anything risky (unlocking, switching on things that heat), which the assistant can never skip. Tested end to end against a real Home Assistant, including stopping it mid-run ([smart home](docs/smart-home.md), [Phase 6](docs/phase-6.md)) |
+| **Daily briefing** | Every morning each member gets weather, calendar, tasks, shopping, money, bills, plants and upkeep, with personalised recommendations that learn from "not now" ([briefings](docs/briefings.md)) |
+| **Plant care** | Plants, care logs and alerts. An hourly job reads one cached weather forecast per household (behind a `WeatherProvider` interface, Open-Meteo) and pushes watering, frost, heat, rain and wind reminders, without ever sending the same one twice ([plant care](docs/plants.md)) |
+| **MySQL 8.4** | 41 normalized tables with foreign keys, CHECK constraints, generated columns and soft-delete-safe unique keys ([ER diagrams](docs/database.md)). Window functions, CTEs, a view, and `EXPLAIN ANALYZE` before/after: [1,400× faster](docs/insights.md) |
+| **React** | Inertia + React + TypeScript dashboard with Recharts and a week planner ([dashboard](docs/dashboard.md)). Vitest + React Testing Library |
+| **Oracle basics** | Interval partitions, ARCHIVELOG, `EXCHANGE PARTITION` archiving, RMAN level 0/1, Data Pump and four timed recovery drills ([runbook](ops/oracle/RUNBOOK.md)) |
+| **API hygiene** | One error format with codes and request ids, per-user rate limits, consistent paging/sorting/filtering ([API reference](docs/api.md)) |
+| **Production-ready** | Nightly `mysqldump` backups with a weekly restore test, JSON logs traced by request id, ops alerts by email, a [system health page](docs/operations.md#health), security headers, expiring tokens, and a pre-deploy `app:production-check` ([Phase 1](docs/phase-1.md)) |
+| **CI** | GitHub Actions on a protected `main`: three required checks. Tests (MySQL + Redis services, Pint, Pest, a backup/restore drill, build, `tsc`, Vitest, generated docs current), PHPStan level 7, and dependency audits. The agent workflow builds and tests the C++ agent on Linux and Windows, under ASan/UBSan, and end to end against the app |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    phone["📱 Expo app<br/>offline-first + sync"]
+    browser["🖥️ Browser"]
+    pc["💻 Computers at home<br/>C++ agent (service)"]
+
+    subgraph app["Laravel 13 app"]
+        api["REST + sync API<br/>Sanctum, policies"]
+        agentapi["Agent API<br/>signed requests"]
+        web["Inertia + React<br/>dashboard"]
+        queries["SQL insight queries"]
+        jobs["Scheduled household jobs"]
+    end
+
+    mysql[("MySQL 8.4")]
+    redis[("Redis queue")]
+    expo["Expo Push"]
+    weather["Open-Meteo<br/>forecast"]
+    oracle[("Oracle Free lab")]
+
+    phone -- "POST …/sync" --> api
+    browser --> web
+    pc -- "heartbeat, events, results<br/>(HMAC-signed both ways)" --> agentapi
+    agentapi --> mysql
+    api --> mysql
+    web --> queries
+    api --> queries
+    queries --> mysql
+    redis --> jobs
+    jobs --> mysql
+    jobs -- "push" --> expo --> phone
+    jobs -. "plant care" .-> weather
+    mysql -. "CSV, SQL*Loader" .-> oracle
+```
+
+## Quick start
+
+```bash
+composer install && npm install
+cp .env.example .env && php artisan key:generate
+docker compose up -d mysql redis
+php artisan migrate:fresh --seed       # 6 months of demo data
+composer run dev                       # http://localhost:8000, API docs at /docs/api
+```
+
+Sail, Windows notes, queue workers and tests: [docs/development.md](docs/development.md).
+
+### Demo accounts
+
+`DemoSeeder` builds one household ("Patission 12") with six months of data up to today, from a fixed random seed: weekly shops with creeping prices, rent and bills, one month over budget, a chore that keeps slipping, health logs, and six plants (one due today, one late, two on the balcony).
+
+| Email | Password | Role |
+|---|---|---|
+| `demo@homehelper.test` | `password` | Owner: can invite, sees the owner's personal logs |
+| `alex@homehelper.test` | `password` | Member: shares the household data, but not the owner's personal logs |
+
+Local only: the demo seeder refuses to run in production, and `php artisan app:production-check` fails while these accounts exist ([deployment](docs/deployment.md)). The demo owner is also the local admin for `/system/health`.
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8000/api/login -H 'Accept: application/json' \
+  -d email=demo@homehelper.test -d password=password | jq -r .token)
+curl -s localhost:8000/api/households -H "Authorization: Bearer $TOKEN" | jq
+```
+
+## Documentation
+
+| | |
+|---|---|
+| [API reference](docs/api.md) | Endpoints, list parameters, error format and codes, rate limits, how access is enforced |
+| [OpenAPI document](docs/openapi.json) | Generated by Scramble; browse it interactively at `/docs/api` |
+| [Database diagrams](docs/database.md) | Mermaid ER diagrams generated from the live schema (`php artisan docs:schema`) |
+| [Database design](docs/database-design.md) | Households and personal data, ULIDs, soft-delete-safe unique keys, CHECK constraints |
+| [Sync between phones](docs/sync.md) | Last write wins, tombstones, natural keys, a server-clock cursor |
+| [Insights in SQL](docs/insights.md) | Window functions and CTEs, with `EXPLAIN ANALYZE` before and after |
+| [Scheduled jobs and push](docs/jobs.md) | Shopping list, bills, budget alerts, weekly summary, plant care |
+| [Assistant](docs/assistant.md) | The AI assistant: model, tools, permissions and confirmation, API, evaluation ([Phase 2](docs/phase-2.md)) |
+| [Memory](docs/memory.md) | Short- and long-term memory, facts, notes and documents, embeddings and hybrid search, the activity timeline, household summaries ([Phase 3](docs/phase-3.md)) |
+| [Briefings](docs/briefings.md) | The daily briefing and personalised recommendations |
+| [Voice](docs/voice.md) | Choosing the speech technology, the voice service, talking in the browser, wake word, styles, privacy ([Phase 4](docs/phase-4.md)) |
+| [Computers](docs/agents.md) | The local agent's server side: pairing, signed endpoints, commands, events, updates, the Computers page ([agent docs](agent/README.md), [Phase 5](docs/phase-5.md)) |
+| [Smart home](docs/smart-home.md) | Home Assistant: connecting, discovery, controls, sensors, events, notifications, automations, approvals, testing against a real one ([Phase 6](docs/phase-6.md)) |
+| [Plant care](docs/plants.md) | Plants, care logs, weather-aware alerts, the today and away-plan endpoints |
+| [Web dashboard](docs/dashboard.md) | Inertia pages, charts and the week planner |
+| [Oracle lab](docs/oracle.md) | Partitioning, archiving, RMAN, Data Pump and recovery drills |
+| [Architecture](docs/architecture.md) | Layers, request flows, running processes; [review](docs/architecture-review.md) of what was fixed |
+| [Feature checklist](docs/feature-checklist.md) | Every feature: works, partial or missing |
+| [Security](docs/security.md) | Authentication, permissions, rate limits, headers, known gaps |
+| [Operations](docs/operations.md) | Logs, queues, alerts and the health page |
+| [Backups](docs/backups.md) | Nightly backups, the restore test, how to restore |
+| [Deployment](docs/deployment.md) | Production settings and the pre-deploy check |
+| [Contributing](docs/contributing.md) | Protected `main`, pull requests, required checks |
+| [Test baseline](docs/testing.md) | Test counts and timings before and after Phase 1 |
+| [Development](docs/development.md) | Running it, the test suite, generated docs |
+
+## Stack
+
+Laravel 13 · PHP 8.4 · C++20 (CMake, spdlog, nlohmann/json, Monocypher, Catch2, WinHTTP / libcurl) · Claude (Anthropic PHP SDK) · Voyage AI embeddings · Python (FastAPI) · faster-whisper · Piper · openWakeWord · Pest · MySQL 8.4 · Redis · Inertia + React 19 + TypeScript · Recharts · Vitest · Scramble (OpenAPI) · Docker · GitHub Actions · Oracle AI Database 26ai Free (lab). Phone app: [personal-home-helper](https://github.com/kgiannopoulou/personal-home-helper) (Expo, React Native).
+
+## License
+
+[MIT](LICENSE) © 2026 kgiannopoulou

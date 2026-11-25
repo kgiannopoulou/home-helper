@@ -1,0 +1,226 @@
+import { Head, Link, usePage, usePoll } from '@inertiajs/react';
+import { BudgetCard } from '@/components/budget-card';
+import Heading from '@/components/heading';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { money, weekdayDate } from '@/lib/format';
+import { listNames } from '@/lib/smart-home';
+import { chores, dashboard, planner, smartHome, spending } from '@/routes';
+import type { CurrentHousehold, Forecast, OverdueChore } from '@/types/home';
+import type { HomeSummary } from '@/types/smart-home';
+
+type Props = {
+    forecast: Forecast;
+    spentThisWeek: number;
+    shoppingDay: {
+        weekday: number;
+        name: string;
+        next_on: string;
+        share: number;
+    } | null;
+    overdue: OverdueChore[];
+    shoppingList: { id: string; name: string; quantity: string | null }[];
+    toBuy: number;
+    smartHome: HomeSummary | null;
+};
+
+/** How often the dashboard asks for fresh numbers, so what a phone syncs shows up on its own */
+const REFRESH_MS = 10_000;
+
+export default function Dashboard({
+    forecast,
+    spentThisWeek,
+    shoppingDay,
+    overdue,
+    shoppingList,
+    toBuy,
+    smartHome: home,
+}: Props) {
+    usePoll(REFRESH_MS);
+    const { household } = usePage<{ household: CurrentHousehold }>().props;
+    const currency = household.currency;
+
+    return (
+        <>
+            <Head title="Dashboard" />
+            <div className="flex flex-col gap-6 p-4 md:p-6">
+                <Heading
+                    title={household.name}
+                    description="The same household as on the phone, at a glance."
+                />
+
+                <div className="grid gap-4 md:grid-cols-3">
+                    <Tile
+                        title="This week"
+                        value={money(spentThisWeek, currency)}
+                        note="spent since Monday"
+                        href={spending()}
+                    />
+                    <Tile
+                        title="Shopping"
+                        value={
+                            shoppingDay ? weekdayDate(shoppingDay.next_on) : '–'
+                        }
+                        note={`${toBuy} ${toBuy === 1 ? 'thing' : 'things'} on the list${shoppingDay ? `, usually on ${shoppingDay.name}` : ''}`}
+                    />
+                    <Tile
+                        title="Chores"
+                        value={
+                            overdue.length
+                                ? `${overdue.length} overdue`
+                                : 'On track'
+                        }
+                        note={
+                            overdue.length
+                                ? overdue
+                                      .map((c) => c.name)
+                                      .slice(0, 3)
+                                      .join(', ')
+                                : 'nothing past its day'
+                        }
+                        href={chores()}
+                    />
+                </div>
+
+                {home && home.lights > 0 && (
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <Tile
+                            title="Home"
+                            value={
+                                home.connected
+                                    ? home.open.length
+                                        ? `${home.open.length} open`
+                                        : 'All closed'
+                                    : 'Home Assistant offline'
+                            }
+                            note={
+                                home.open.length
+                                    ? listNames(home.open)
+                                    : `${home.lights_on} of ${home.lights} lights on`
+                            }
+                            href={smartHome()}
+                        />
+                        <Tile
+                            title="Temperature"
+                            value={
+                                home.temperature
+                                    ? `${home.temperature.min}–${home.temperature.max} °C`
+                                    : '–'
+                            }
+                            note={
+                                home.humidity
+                                    ? `humidity up to ${home.humidity.max}%${home.humidity.room ? ` (${home.humidity.room})` : ''}`
+                                    : 'no humidity sensor'
+                            }
+                            href={smartHome()}
+                        />
+                        <Tile
+                            title="Devices"
+                            value={
+                                home.unavailable.length
+                                    ? `${home.unavailable.length} not answering`
+                                    : 'All answering'
+                            }
+                            note={
+                                home.unavailable.length
+                                    ? listNames(home.unavailable)
+                                    : home.motion.length
+                                      ? `motion: ${listNames(home.motion)}`
+                                      : 'no motion right now'
+                            }
+                            href={smartHome()}
+                        />
+                    </div>
+                )}
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Shopping list</CardTitle>
+                        <CardDescription>
+                            Shared with the phones · updates on its own
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {shoppingList.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                Nothing to buy.
+                            </p>
+                        ) : (
+                            <ul className="flex flex-wrap gap-2">
+                                {shoppingList.map((item) => (
+                                    <li
+                                        key={item.id}
+                                        className="rounded-full border px-3 py-1 text-sm"
+                                    >
+                                        {item.name}
+                                        {item.quantity && (
+                                            <span className="text-muted-foreground">
+                                                {' '}
+                                                × {item.quantity}
+                                            </span>
+                                        )}
+                                    </li>
+                                ))}
+                                {toBuy > shoppingList.length && (
+                                    <li className="px-1 py-1 text-sm text-muted-foreground">
+                                        and {toBuy - shoppingList.length} more
+                                    </li>
+                                )}
+                            </ul>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <BudgetCard forecast={forecast} currency={currency} />
+
+                <p className="text-sm text-muted-foreground">
+                    Plan next week's chores, meals and errands in the{' '}
+                    <Link
+                        href={planner()}
+                        className="underline underline-offset-4"
+                    >
+                        week planner
+                    </Link>
+                    .
+                </p>
+            </div>
+        </>
+    );
+}
+
+function Tile({
+    title,
+    value,
+    note,
+    href,
+}: {
+    title: string;
+    value: string;
+    note: string;
+    href?: Parameters<typeof Link>[0]['href'];
+}) {
+    const body = (
+        <Card className="h-full gap-2 transition-colors hover:bg-muted/40">
+            <CardHeader>
+                <CardDescription>{title}</CardDescription>
+                <CardTitle className="text-2xl font-semibold">
+                    {value}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+                {note}
+            </CardContent>
+        </Card>
+    );
+
+    return href ? <Link href={href}>{body}</Link> : body;
+}
+
+Dashboard.layout = {
+    breadcrumbs: [{ title: 'Dashboard', href: dashboard() }],
+};
