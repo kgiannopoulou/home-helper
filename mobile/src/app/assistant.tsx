@@ -12,6 +12,7 @@ import { pickPhoto } from '../modules/assistant/lib/pickPhoto';
 import { appliedNote, applyPlan } from '../modules/assistant/lib/plan';
 import { makeTools, type ActionLog } from '../modules/assistant/lib/tools';
 import { getApiKey, setApiKey } from '../modules/kitchen/lib/storage';
+import { AI_ENABLED } from '../shared/features';
 import { Button, Card, Chip, colors, Field, Muted, styles, Title } from '../shared/ui';
 import { useHub } from '../shared/useHub';
 
@@ -38,7 +39,26 @@ function KeySetup({ onSaved }: { onSaved: () => void }) {
   );
 }
 
-export default function Assistant() {
+/** The free build has no AI Hub: a deep link or old notification lands here instead. */
+function AiOff() {
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Card>
+        <Title>🧠 AI Hub is off</Title>
+        <Muted>
+          This free build of Home Helper doesn’t use any paid AI service. Everything else works without it: the hub’s
+          tips, kitchen recipes from what you have, shopping predictions, budget forecasts and chore planning.
+        </Muted>
+      </Card>
+    </ScrollView>
+  );
+}
+
+export default function AssistantScreen() {
+  return AI_ENABLED ? <Assistant /> : <AiOff />;
+}
+
+function Assistant() {
   const hub = useHub();
   const actions = useAssistantActions();
   const [chat, setChat] = useState<Chat | null>(null);

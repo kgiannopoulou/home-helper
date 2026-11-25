@@ -1,5 +1,5 @@
 {
-  "name": "personal-home-helper",
+  "name": "home-helper-mobile",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
@@ -43,7 +43,9 @@
     "web": "expo start --web",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:pwa": "expo export -p web && node scripts/pwa.mjs",
+    "build:apk": "eas build -p android --profile preview"
   },
   "private": true,
   "jest": {

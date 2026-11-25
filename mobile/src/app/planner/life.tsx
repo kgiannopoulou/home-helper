@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { DateField, isDateKey } from '../../modules/planner/components/DateField';
+import { AI_ENABLED } from '../../shared/features';
 import { Button, Card, Chip, ChipRow, colors, Field, Muted, styles, Title } from '../../shared/ui';
 import { toDateKey } from '../../shared/dates';
 import { GiftAIError, suggestGifts } from '../../modules/planner/lib/giftAI';
@@ -183,6 +184,7 @@ function PersonRow({ person }: { person: Person }) {
                 }}
               />
             </View>
+            {AI_ENABLED && (
             <View style={{ flex: 1 }}>
               <Button
                 label={loading ? 'Thinking…' : '✨ AI ideas'}
@@ -209,8 +211,9 @@ function PersonRow({ person }: { person: Person }) {
                 }}
               />
             </View>
+            )}
           </View>
-          {!hasKey && <Muted>AI ideas need your Anthropic API key in ⚙️ Settings.</Muted>}
+          {AI_ENABLED && !hasKey && <Muted>AI ideas need your Anthropic API key in ⚙️ Settings.</Muted>}
           {loading && <ActivityIndicator style={{ marginTop: 8 }} color={colors.primary} />}
           {!!error && <Text style={{ color: colors.danger, marginTop: 6 }}>{error}</Text>}
           {person.ideas.map((idea) => (

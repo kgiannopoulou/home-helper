@@ -1,13 +1,14 @@
 {
   "expo": {
     "name": "Home Helper",
-    "slug": "personal-home-helper",
+    "slug": "home-helper",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.homehelper.family"
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +17,18 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "app.homehelper.family"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "Home Helper",
+      "shortName": "Home Helper",
+      "themeColor": "#4F46E5",
+      "backgroundColor": "#F6F7F4",
+      "display": "standalone",
+      "lang": "en"
     },
     "plugins": [
       "expo-router",
@@ -28,7 +37,7 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Allow Home Helper to photograph meals and supermarket receipts so AI can read them."
+          "cameraPermission": "Allow Home Helper to take photos for your records."
         }
       ],
       [

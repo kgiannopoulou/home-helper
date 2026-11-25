@@ -7,6 +7,7 @@ import { usePrepared } from '../shared/PredictionsRunner';
 import { weatherLabel } from '../modules/weather/lib/weather';
 import { time } from '../modules/planner/lib/planner';
 import { useHub } from '../shared/useHub';
+import { AI_ENABLED } from '../shared/features';
 import { Card, colors, Muted, styles, Title } from '../shared/ui';
 import { useSync } from '../shared/sync/SyncProvider';
 
@@ -119,6 +120,7 @@ export default function Hub() {
         ))}
       </Card>
 
+      {AI_ENABLED && (
       <Pressable
         accessibilityRole="button"
         onPress={() => router.push('/assistant')}
@@ -131,6 +133,7 @@ export default function Hub() {
         </View>
         <Text style={{ fontSize: 20, color: colors.primary }}>›</Text>
       </Pressable>
+      )}
 
       <Pressable
         accessibilityRole="button"
@@ -164,7 +167,7 @@ export default function Hub() {
           title="Kitchen"
           href="/kitchen"
           highlight={kitchen.expiring.length > 0}
-          line={kitchen.expiring.length ? `Use soon: ${kitchen.expiring.slice(0, 2).join(', ')}` : kitchen.total ? 'Everything fresh' : 'Add or scan your food'}
+          line={kitchen.expiring.length ? `Use soon: ${kitchen.expiring.slice(0, 2).join(', ')}` : kitchen.total ? 'Everything fresh' : AI_ENABLED ? 'Add or scan your food' : 'Add your food'}
           sub={`${kitchen.total} items at home`}
         />
         <Tile

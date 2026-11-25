@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
+import { AI_ENABLED } from '../../shared/features';
 import { Button, Card, Field, Muted, styles, Title } from '../../shared/ui';
 import { remindersSupported } from '../../modules/kitchen/lib/reminders';
 import { getApiKey, setApiKey } from '../../modules/kitchen/lib/storage';
@@ -32,7 +33,7 @@ export default function Settings() {
           <Switch value={s.expiryReminders} onValueChange={(expiryReminders) => setSettings({ ...s, expiryReminders })} />
         </View>
       </Card>
-      <ApiKeyCard />
+      {AI_ENABLED && <ApiKeyCard />}
     </ScrollView>
   );
 }

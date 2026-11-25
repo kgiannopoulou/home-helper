@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
+import { AI_ENABLED } from '../../shared/features';
 import { Button, Card, Chip, ChipRow, colors, Field, Muted, styles, Title } from '../../shared/ui';
 import { calendarSupported, listCalendars, type PhoneCalendar } from '../../modules/planner/lib/calendar';
 import { notificationsSupported } from '../../modules/planner/lib/notifications';
@@ -152,7 +153,7 @@ export default function Settings() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <BriefingCard />
       <CalendarsCard />
-      <ApiKeyCard />
+      {AI_ENABLED && <ApiKeyCard />}
     </ScrollView>
   );
 }

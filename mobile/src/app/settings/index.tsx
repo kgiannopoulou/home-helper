@@ -7,7 +7,8 @@ import { Button, Card, colors, Field, Muted, styles, Title } from '../../shared/
 
 function SignIn() {
   const { signIn } = useSync();
-  const [server, setServer] = useState('');
+  // A family build is pointed at its own server (EXPO_PUBLIC_API_URL), so nobody has to type it.
+  const [server, setServer] = useState(process.env.EXPO_PUBLIC_API_URL ?? '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);

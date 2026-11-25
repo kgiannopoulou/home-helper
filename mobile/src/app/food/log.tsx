@@ -5,6 +5,7 @@ import { Button, Card, ChipRow, colors, Field, Muted, styles, Title } from '../.
 import { nutrientsFor, searchFoods, type Food } from '../../modules/food/lib/foods';
 import { estimateMeal, MealAIError, type MealEstimate } from '../../modules/food/lib/mealAI';
 import { getApiKey } from '../../modules/food/lib/storage';
+import { AI_ENABLED } from '../../shared/features';
 import { useStore } from '../../modules/food/lib/store';
 import type { Meal } from '../../modules/food/lib/types';
 
@@ -33,9 +34,9 @@ export default function LogFood() {
         value={mode}
         onChange={setMode}
         options={[
-          { value: 'search', label: '🔎 Search' },
-          { value: 'ai', label: '📷 Photo / describe (AI)' },
-          { value: 'custom', label: '✏️ Custom' },
+          { value: 'search' as Mode, label: '🔎 Search' },
+          ...(AI_ENABLED ? [{ value: 'ai' as Mode, label: '📷 Photo / describe (AI)' }] : []),
+          { value: 'custom' as Mode, label: '✏️ Custom' },
         ]}
       />
       <Card>
@@ -43,7 +44,7 @@ export default function LogFood() {
         <ChipRow value={meal} onChange={setMeal} options={MEAL_OPTIONS} />
       </Card>
       {mode === 'search' && <SearchLog meal={meal} />}
-      {mode === 'ai' && <AILog meal={meal} />}
+      {AI_ENABLED && mode === 'ai' && <AILog meal={meal} />}
       {mode === 'custom' && <CustomLog meal={meal} />}
     </ScrollView>
   );

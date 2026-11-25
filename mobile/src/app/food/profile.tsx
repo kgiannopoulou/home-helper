@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
+import { AI_ENABLED } from '../../shared/features';
 import { Button, Card, ChipRow, colors, Field, Muted, styles, Title } from '../../shared/ui';
 import { dailyTargets } from '../../modules/food/lib/nutrition';
 import { applyReminders, remindersSupported, waterReminderHours } from '../../modules/food/lib/reminders';
@@ -98,7 +99,7 @@ export default function ProfileScreen() {
       </Card>
 
       <RemindersCard />
-      <ApiKeyCard />
+      {AI_ENABLED && <ApiKeyCard />}
     </ScrollView>
   );
 }

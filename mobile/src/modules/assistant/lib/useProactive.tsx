@@ -9,6 +9,7 @@ import { useStore as useKitchen } from '../../kitchen/lib/store';
 import { useStore as useMoney } from '../../money/lib/store';
 import { useStore as usePlanner } from '../../planner/lib/store';
 import { useStore as useShopping } from '../../shopping/lib/store';
+import { AI_ENABLED } from '../../../shared/features';
 import { cancelScheduled, notificationId } from '../../../shared/notify';
 import { toDateKey } from '../../../shared/dates';
 import { useHub } from '../../../shared/useHub';
@@ -75,7 +76,7 @@ export function ProactiveProvider({ children }: { children: ReactNode }) {
 
   // A reminder every Sunday evening to read the review.
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || !AI_ENABLED) return;
     (async () => {
       const { granted } = await Notifications.getPermissionsAsync();
       if (!granted) return;
@@ -108,6 +109,7 @@ export function ProactiveProvider({ children }: { children: ReactNode }) {
 
   const run = useCallback(
     async (force = false) => {
+      if (!AI_ENABLED) return;
       const now = new Date();
       const key = await getApiKey();
       if (!key || !savedRef.current) return;
